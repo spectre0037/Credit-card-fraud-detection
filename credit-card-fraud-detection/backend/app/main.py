@@ -1,7 +1,7 @@
+import io
+import pandas as pd
 from fastapi import FastAPI, HTTPException, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
-import pandas as pd
-import io
 
 from app.schemas import (
     TransactionInput, 
@@ -21,7 +21,7 @@ app = FastAPI(
 # Enable CORS for frontend seamless connection
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Adjust to specific domains in production environments
+    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -37,7 +37,8 @@ def get_status():
         "available_models": available
     }
 
-@app.post("/predict", response_model=SinglePredictionResponse, tags=["Inference"])
+# FIXED ROUTE: Matches React fetch destination url perfectly
+@app.post("/predict/single", response_model=SinglePredictionResponse, tags=["Inference"])
 def predict_transaction(data: TransactionInput, model: str = "xgboost"):
     """
     Evaluates an individual manual credit card transaction profile for fraud.
@@ -53,7 +54,8 @@ def predict_transaction(data: TransactionInput, model: str = "xgboost"):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.post("/predict-batch", response_model=BatchPredictionResponse, tags=["Inference"])
+# FIXED ROUTE: Matches React batch file upload endpoint mapping perfectly
+@app.post("/predict/batch", response_model=BatchPredictionResponse, tags=["Inference"])
 async def predict_csv_batch(
     file: UploadFile = File(...), 
     model: str = Form("xgboost")
