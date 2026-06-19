@@ -8,6 +8,7 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import RandomForestClassifier
 from xgboost import XGBClassifier
 from lightgbm import LGBMClassifier
+from sklearn.metrics import f1_score, precision_score, recall_score
 
 # Define paths
 DATA_PATH = os.path.join(os.path.dirname(__file__), "../data/creditcard.csv")
@@ -45,23 +46,54 @@ def train_and_save_models():
     
     # Dictionary of models to train
     models = {
-        "logistic.pkl": LogisticRegression(max_iter=1000, random_state=42, class_weight='balanced'),
-        "random_forest.pkl": RandomForestClassifier(n_estimators=100, random_state=42, max_depth=10, n_jobs=-1, class_weight='balanced'),
-        "xgboost.pkl": XGBClassifier(n_estimators=100, max_depth=6, random_state=42, eval_metric='logloss', scale_pos_weight=500),
-        "lightgbm.pkl": LGBMClassifier(n_estimators=100, random_state=42, class_weight='balanced', verbose=-1)
+        "Logistic Regression": LogisticRegression(max_iter=1000, random_state=42, class_weight='balanced'),
+        "Random Forest": RandomForestClassifier(n_estimators=100, random_state=42, max_depth=10, n_jobs=-1, class_weight='balanced'),
+        "XGBoost": XGBClassifier(n_estimators=100, max_depth=6, random_state=42, eval_metric='logloss', scale_pos_weight=500),
+        "LightGBM": LGBMClassifier(n_estimators=100, random_state=42, class_weight='balanced', verbose=-1)
+    }
+    
+    # Filename mapper for storage savings
+    file_mapping = {
+        "Logistic Regression": "logistic.pkl",
+        "Random Forest": "random_forest.pkl",
+        "XGBoost": "xgboost.pkl",
+        "LightGBM": "lightgbm.pkl"
     }
     
     # Train and serialize each model
-    for filename, model in models.items():
-        print(f"🏋️ Training {filename.split('.')[0]}...")
+    for name, model in models.items():
+        print(f"🏋️ Training {name}...")
         model.fit(X_train_scaled, y_train)
         
-        # Save model
+        # Save model using filename map
+        filename = file_mapping[name]
         model_path = os.path.join(MODEL_DIR, filename)
         joblib.dump(model, model_path)
         print(f"💾 Saved {filename}")
         
     print("\n🎉 All models trained and artifacts secured successfully!")
+    
+    # CRITICAL: Return the variables so the leaderboard block can access them!
+    return models, X_test_scaled, y_test
 
 if __name__ == "__main__":
-    train_and_save_models()
+    # Execute training and catch the returned items
+    trained_models, X_test_scaled, y_test = train_and_save_models()
+    
+    print("\n📊 ================= MODEL ACCURACY COMPARISON LEADERBOARD ================= 📊\n")
+    
+    for name, model in trained_models.items():
+        # 1. Run predictions on SCALED test data
+        y_pred = model.predict(X_test_scaled)
+        
+        # 2. Extract metrics for Class 1 (Fraud)
+        precision = precision_score(y_test, y_pred, pos_label=1)
+        recall = recall_score(y_test, y_pred, pos_label=1)
+        f1 = f1_score(y_test, y_pred, pos_label=1)
+        
+        # 3. Print structured output block
+        print(f"🤖 {name}:")
+        print(f"   • Precision (Out of flagged fraud, how many were true): {precision:.2%}")
+        print(f"   • Recall (Out of actual total fraud, how many were caught): {recall:.2%}")
+        print(f"   • F1-Score (The balanced master metric): {f1:.2%}")
+        print("-" * 75)
