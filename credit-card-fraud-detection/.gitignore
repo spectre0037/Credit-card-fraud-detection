@@ -1,0 +1,45 @@
+# ====================================================================
+# 💳 CREDIT CARD FRAUD DETECTION PROJECT - CUSTOM GITIGNORE
+# ====================================================================
+
+# 1. Large Data Files & Datasets (CRITICAL)
+# This blocks the 143MB file that failed your push earlier
+/data/creditcard.csv
+*.csv
+*.sqlite3
+
+# 2. Machine Learning Serialized Models
+# Prevents heavy binary .pkl files from bloating your GitHub repo
+/credit-card-fraud-detection/backend/models/*.pkl
+*.pkl
+
+# 3. Python Virtual Environments
+# Prevents thousands of third-party dependency files from being tracked
+/venv/
+.venv/
+env/
+ENV/
+
+# 4. Python Bytecode & Cache Directories
+# Automatically generated files that don't belong in source control
+**/__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+
+# 5. Development IDE Settings
+# Keeps your local VS Code setup private to your computer
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.swp
+
+# 6. System Garbage Files
+.DS_Store
+.DS_Store?
+ehthumbs.db
+Thumbs.db
