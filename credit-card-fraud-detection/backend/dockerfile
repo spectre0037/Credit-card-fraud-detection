@@ -13,16 +13,16 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     && rm -rf /var/lib/apt/lists/*
 
-# 🛠️ NESTED PATH FIX: Pointing cleanly through your dual parent folder path layout
+# Copy requirements from the backend folder
 COPY credit-card-fraud-detection/backend/requirements.txt /code/
 RUN pip install --no-cache-dir --upgrade -r /code/requirements.txt
 
-# Copy the entire app directory into the container from your nested location
+# 🛠️ FIXED: Copy BOTH the models folder and the app folder into /code
+COPY credit-card-fraud-detection/backend/models /code/models
 COPY credit-card-fraud-detection/backend/app /code/app
 
-RUN python -m app.model_loader
 # Expose port 8000 for network routing
 EXPOSE 8000
 
-# Run Uvicorn production server targeting your app module structure
+# Run Uvicorn production server
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
