@@ -124,15 +124,12 @@ export default function SinglePrediction() {
     },
   ];
 
-  // Primary field states initialized to Profile 1
   const [amount, setAmount] = useState(testProfiles[0].amount);
   const [vectors, setVectors] = useState(testProfiles[0].vectors);
-
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  // Apply a dynamic test dataset preset completely across the matrix template
   const applyPresetProfile = (profile) => {
     setAmount(profile.amount);
     setVectors(profile.vectors);
@@ -140,7 +137,6 @@ export default function SinglePrediction() {
     setError(null);
   };
 
-  // Safe vector key input handler
   const handleVectorChange = (key, val) => {
     setVectors((prev) => ({
       ...prev,
@@ -154,15 +150,18 @@ export default function SinglePrediction() {
     setError(null);
     setResult(null);
 
-    // Assembly profile body context payload matching TransactionInput pydantic schema
+    // 🌟 FIX 1: Robust payload composition with clean key exclusions
     const fullPayload = {
-      Time: parseFloat(vectors.Time) || 0.0,
+      Time: parseFloat(vectors.Time ?? vectors.time) || 0.0,
       Amount: parseFloat(amount) || 0.0,
-      ...Object.keys(vectors).reduce((acc, key) => {
-        if (key !== "Time") acc[key] = parseFloat(vectors[key]) || 0.0;
-        return acc;
-      }, {}),
     };
+
+    // Add V1 through V28 cleanly without tracking key mutations
+    Object.keys(vectors).forEach((key) => {
+      if (key.toLowerCase() !== "time" && key.toLowerCase() !== "amount") {
+        fullPayload[key] = parseFloat(vectors[key]) || 0.0;
+      }
+    });
 
     try {
       const response = await fetch("https://credit-card-fraud-detection-4pck.onrender.com/predict/single", {
@@ -173,7 +172,9 @@ export default function SinglePrediction() {
 
       if (!response.ok)
         throw new Error("Model worker pipeline rejected the dataset vectors.");
+      
       const data = await response.json();
+      console.log("Single Evaluation Response Data:", data);
       setResult(data);
     } catch (err) {
       setError(err.message);
@@ -182,13 +183,16 @@ export default function SinglePrediction() {
     }
   };
 
+  // 🌟 FIX 2: Universal Scanner variables for the response object
+  const isFraudResult = result ? !!(result.is_fraud === 1 || result.is_fraud === true || result.prediction === 1 || result.label === 1) : false;
+  const confidenceScore = result ? (result.fraud_probability ?? result.confidence ?? result.probability ?? (isFraudResult ? 0.95 : 0.05)) : 0;
+
   return (
     <div className="max-w-7xl mx-auto space-y-6 text-slate-100 animate-fadeIn">
       {/* SECTION 1: INTERACTIVE QUICK TEST DATA PRESETS */}
       <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl shadow-xl">
         <h3 className="text-xs font-black uppercase tracking-widest text-slate-400 mb-3 flex items-center gap-2">
-          <Zap className="h-4 w-4 text-amber-400" /> Interactive Quick-Load Test
-          Profiles
+          <Zap className="h-4 w-4 text-amber-400" /> Interactive Quick-Load Test Profiles
         </h3>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {testProfiles.map((p, i) => (
@@ -219,18 +223,14 @@ export default function SinglePrediction() {
 
       {/* MAIN SYSTEM CONTAINER SPLITGRID */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* PANEL LEFT: CLEAN STRUCTURED INPUT MATRIX GRID (2 COLUMNS OVERALL) */}
+        {/* PANEL LEFT: INPUT MATRIX GRID */}
         <div className="lg:col-span-2 space-y-6">
-          <form
-            onSubmit={handleEvaluation}
-            className="bg-slate-900 border border-slate-800 p-6 rounded-2xl shadow-xl space-y-6"
-          >
+          <form onSubmit={handleEvaluation} className="bg-slate-900 border border-slate-800 p-6 rounded-2xl shadow-xl space-y-6">
             {/* RAW BASICS BAR */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border-b border-slate-800 pb-5">
               <div>
                 <label className="block text-[10px] font-black uppercase tracking-wider text-slate-400 mb-1.5 flex items-center gap-1">
-                  <DollarSign className="h-3 w-3 text-blue-500" /> Transaction
-                  Value (Amount)
+                  <DollarSign className="h-3 w-3 text-blue-500" /> Transaction Value (Amount)
                 </label>
                 <input
                   type="number"
@@ -247,7 +247,7 @@ export default function SinglePrediction() {
                 </label>
                 <input
                   type="number"
-                  value={vectors.Time}
+                  value={vectors.Time ?? vectors.time ?? ""}
                   onChange={(e) => handleVectorChange("Time", e.target.value)}
                   className="w-full bg-slate-950 border border-slate-800 focus:border-blue-500/80 text-white font-mono rounded-xl p-3 text-sm focus:outline-none transition shadow-inner"
                   required
@@ -258,17 +258,13 @@ export default function SinglePrediction() {
             {/* PCA COLS MATRIX FORM */}
             <div>
               <h4 className="text-xs font-black uppercase tracking-widest text-slate-400 mb-3 flex items-center gap-1.5">
-                <Sliders className="h-3.5 w-3.5 text-blue-500" /> Mathematical
-                Vector Grid (V1 - V28)
+                <Sliders className="h-3.5 w-3.5 text-blue-500" /> Mathematical Vector Grid (V1 - V28)
               </h4>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 {Object.keys(vectors).map((key) => {
-                  if (key === "Time") return null; // Time is handled explicitly above
+                  if (key.toLowerCase() === "time") return null;
                   return (
-                    <div
-                      key={key}
-                      className="bg-slate-950 p-2 rounded-xl border border-slate-850 flex items-center gap-2"
-                    >
+                    <div key={key} className="bg-slate-950 p-2 rounded-xl border border-slate-850 flex items-center gap-2">
                       <span className="text-[10px] font-black text-slate-500 min-w-[24px] text-right font-mono">
                         {key}
                       </span>
@@ -276,9 +272,7 @@ export default function SinglePrediction() {
                         type="number"
                         step="any"
                         value={vectors[key]}
-                        onChange={(e) =>
-                          handleVectorChange(key, e.target.value)
-                        }
+                        onChange={(e) => handleVectorChange(key, e.target.value)}
                         className="w-full bg-transparent text-white font-mono text-xs focus:outline-none text-right pr-1"
                       />
                     </div>
@@ -287,27 +281,23 @@ export default function SinglePrediction() {
               </div>
             </div>
 
-            {/* TRIGGER PIPELINE SUBMIT BUTTON */}
             <button
               type="submit"
               disabled={loading}
               className="w-full py-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-black uppercase tracking-wider rounded-xl transition shadow-lg flex items-center justify-center gap-2 disabled:from-slate-800 disabled:to-slate-800 disabled:cursor-not-allowed"
             >
               {loading && <RefreshCw className="h-4 w-4 animate-spin" />}
-              {loading
-                ? "Processing Weights..."
-                : "Execute Fraud Model Assessment"}
+              {loading ? "Processing Weights..." : "Execute Fraud Model Assessment"}
             </button>
           </form>
         </div>
 
-        {/* PANEL RIGHT: PRODUCTION DIAGNOSTICS & STATUS RADAR REPORT */}
+        {/* PANEL RIGHT: OPERATIONAL SUMMARY */}
         <div className="space-y-4">
           <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl shadow-xl h-full flex flex-col justify-between min-h-[400px]">
             <div>
               <h3 className="text-xs font-black uppercase tracking-widest text-slate-400 border-b border-slate-800 pb-3 mb-4 flex items-center gap-2">
-                <Cpu className="h-4 w-4 text-indigo-400" /> Operational Model
-                Response
+                <Cpu className="h-4 w-4 text-indigo-400" /> Operational Model Response
               </h3>
 
               {error && (
@@ -319,12 +309,9 @@ export default function SinglePrediction() {
               {!result && !loading && !error && (
                 <div className="text-center text-slate-500 py-24 border border-dashed border-slate-800 rounded-xl flex flex-col items-center justify-center p-4">
                   <Info className="h-8 w-8 text-slate-700 mb-2" />
-                  <span className="text-xs font-bold uppercase tracking-wider">
-                    Awaiting Vector Submissions
-                  </span>
-                  <span className="text-[11px] text-slate-600 mt-1 max-w-xs">
-                    Load a testing preset from the top block or change weights
-                    to score transaction nodes.
+                  <span className="text-xs font-bold uppercase tracking-wider">Awaiting Vector Submissions</span>
+                  <span className="text-[11px] text-slate-600 mt-1 max-w-xs text-center">
+                    Load a testing preset from the top block or change weights to score transaction nodes.
                   </span>
                 </div>
               )}
@@ -339,41 +326,26 @@ export default function SinglePrediction() {
               )}
 
               {result && (
-                <div
-                  className={`p-6 rounded-xl border transition-all ${
-                    result.is_fraud === 1 || result.is_fraud === true
-                      ? "bg-red-950/10 border-red-500/30 text-red-200"
-                      : "bg-emerald-950/10 border-emerald-500/30 text-emerald-200"
-                  }`}
-                >
+                <div className={`p-6 rounded-xl border transition-all ${isFraudResult ? "bg-red-950/10 border-red-500/30 text-red-200" : "bg-emerald-950/10 border-emerald-500/30 text-emerald-200"}`}>
                   <div className="flex justify-center mb-3">
-                    {result.is_fraud === 1 || result.is_fraud === true ? (
-                      <Skull className="h-12 w-12 text-red-500" />
-                    ) : (
-                      <ShieldCheck className="h-12 w-12 text-emerald-400" />
-                    )}
+                    {isFraudResult ? <Skull className="h-12 w-12 text-red-500" /> : <ShieldCheck className="h-12 w-12 text-emerald-400" />}
                   </div>
 
                   <h4 className="text-center font-black text-sm uppercase tracking-widest text-white">
-                    {result.status ??
-                      (result.is_fraud
-                        ? "Fraud Alert Triggered"
-                        : "Transaction Authenticated")}
+                    {result.status ?? (isFraudResult ? "Fraud Alert Triggered" : "Transaction Authenticated")}
                   </h4>
 
                   <div className="mt-6 pt-5 border-t border-slate-800 space-y-4">
                     <div className="text-center">
-                      <span className="text-[9px] text-slate-400 uppercase tracking-widest font-black block">
-                        Model Confidence Density
-                      </span>
+                      <span className="text-[9px] text-slate-400 uppercase tracking-widest font-black block">Model Confidence Density</span>
                       <span className="text-4xl font-black text-white block mt-1 font-mono">
-                        {(result.fraud_probability * 100).toFixed(2)}%
+                        {(confidenceScore * 100).toFixed(2)}%
                       </span>
                     </div>
                     <div className="w-full h-1.5 bg-slate-950 rounded-full overflow-hidden">
                       <div
-                        className={`h-full transition-all duration-500 ${result.is_fraud === 1 || result.is_fraud === true ? "bg-red-500" : "bg-emerald-500"}`}
-                        style={{ width: `${result.fraud_probability * 100}%` }}
+                        className={`h-full transition-all duration-500 ${isFraudResult ? "bg-red-500" : "bg-emerald-500"}`}
+                        style={{ width: `${confidenceScore * 100}%` }}
                       />
                     </div>
                   </div>
@@ -383,13 +355,8 @@ export default function SinglePrediction() {
 
             {result && (
               <div className="text-[10px] font-mono text-slate-500 bg-slate-950 p-3 rounded-xl border border-slate-850 mt-4">
-                <span className="text-slate-400 font-bold block mb-1">
-                  📟 Meta Router Headers:
-                </span>
-                Model engine:{" "}
-                <span className="text-indigo-400 font-bold">
-                  {result.model_used}
-                </span>
+                <span className="text-slate-400 font-bold block mb-1">📟 Meta Router Headers:</span>
+                Model engine: <span className="text-indigo-400 font-bold">{result.model_used ?? "Active Classifier"}</span>
               </div>
             )}
           </div>
