@@ -17,9 +17,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY requirements.txt /code/
 RUN pip install --no-cache-dir --upgrade -r /code/requirements.txt
 
-# Copy the rest of your application code
-COPY ./app /code/app
-COPY ./main.py /code/main.py
+# 🛠️ FIXED: Simple paths because Docker is already executing inside your /backend directory
+COPY app /code/app
+COPY main.py /code/main.py
 
 # Expose port 8000 for network routing
 EXPOSE 8000
