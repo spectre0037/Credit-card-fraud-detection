@@ -8,10 +8,7 @@
 *.csv
 *.sqlite3
 
-# 2. Machine Learning Serialized Models
-# Prevents heavy binary .pkl files from bloating your GitHub repo
-/credit-card-fraud-detection/backend/models/*.pkl
-*.pkl
+
 
 # 3. Python Virtual Environments
 # Prevents thousands of third-party dependency files from being tracked
