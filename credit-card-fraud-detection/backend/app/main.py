@@ -18,10 +18,16 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# Enable CORS for frontend seamless connection
+# 🛠️ UPDATED CORS MIDDLEWARE: Appended production Vercel origins
+origins = [
+    "https://credit-card-fraud-detection-sable.vercel.app",  # Production live client
+    "http://localhost:5173",                                 # Local Vite framework port
+    "http://127.0.0.1:5173"                                  # Local IP loopback port
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
+    allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
