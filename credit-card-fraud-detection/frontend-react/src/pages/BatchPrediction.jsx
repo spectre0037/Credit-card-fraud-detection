@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
 
 export default function BatchPrediction() {
   const [file, setFile] = useState(null);
@@ -37,7 +36,7 @@ export default function BatchPrediction() {
     formData.append('model', model);
 
     try {
-      const response = await fetch(`${API_BASE_URL}/predict/batch`, {
+      const response = await fetch(`https://credit-card-fraud-detection-4pck.onrender.com/predict/batch`, {
         method: 'POST',
         body: formData, // Automatic multipart/form-data bounding
       });
