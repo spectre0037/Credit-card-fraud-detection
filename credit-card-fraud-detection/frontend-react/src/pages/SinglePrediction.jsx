@@ -165,7 +165,7 @@ export default function SinglePrediction() {
     };
 
     try {
-      const response = await fetch("https://credit-card-fraud-detection-4pck.onrender.com/predict/single", {
+      const response = await fetch("https://credit-card-fraud-detection-4pck.onrender.com/app/predict/single", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(fullPayload),
