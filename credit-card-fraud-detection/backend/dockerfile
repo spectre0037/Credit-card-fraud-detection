@@ -5,7 +5,7 @@ FROM python:3.10-slim
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 
-# Set the working directory inside the container
+# Set the working directory inside the container to /code
 WORKDIR /code
 
 # Install system dependencies needed for certain ML packages
@@ -13,16 +13,17 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements first to leverage Docker cache layers
-COPY requirements.txt /code/
+# Copy requirements from the backend folder
+COPY backend/requirements.txt /code/
 RUN pip install --no-cache-dir --upgrade -r /code/requirements.txt
 
-# 🛠️ FIXED: Simple paths because Docker is already executing inside your /backend directory
-COPY app /code/app
-COPY main.py /code/main.py
+# 🛠️ REPO ROOT PATH FIX: Copy the entire app directory into the container
+# This puts main.py, schemas.py, predictor.py all under /code/app
+COPY backend/app /code/app
 
 # Expose port 8000 for network routing
 EXPOSE 8000
 
-# Run Uvicorn production server
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+# 🚀 RUNTIME CMD FIX: Because main.py is inside the app folder, 
+# we point Uvicorn to "app.main:app"
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
