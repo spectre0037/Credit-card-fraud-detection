@@ -19,7 +19,7 @@ export default function BatchPrediction() {
     dataPayload.append('file', csvFile);
 
     try {
-      const response = await fetch('https://credit-card-fraud-detection-4pck.onrender.com/app/predict/batch', {
+      const response = await fetch('https://credit-card-fraud-detection-4pck.onrender.com/predict/batch', {
         method: 'POST',
         body: dataPayload,
       });

@@ -20,6 +20,7 @@ RUN pip install --no-cache-dir --upgrade -r /code/requirements.txt
 # Copy the entire app directory into the container from your nested location
 COPY credit-card-fraud-detection/backend/app /code/app
 
+RUN python -m app.train_models
 # Expose port 8000 for network routing
 EXPOSE 8000
 
