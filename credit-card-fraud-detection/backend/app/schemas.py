@@ -51,14 +51,17 @@ class TransactionInput(BaseModel):
 
 class SinglePredictionResponse(BaseModel):
     model_used: str
-    is_fraud: bool
+    is_fraud: int # Changed to int (0 or 1) to match machine learning binary classifications perfectly
     fraud_probability: float
+    status: str
 
+# 🛠️ FIXED: Matches React frontend variables perfectly and eliminates the 0-results bug
 class BatchPredictionResponse(BaseModel):
     model_used: str
     predictions: List[int]
     probabilities: List[float]
-    fraud_count: int
+    total_processed: int # Added to map directly to frontend chart engines
+    fraud_detected: int  # Fixed naming to match results.fraud_detected inside your UI page
 
 class ModelMeta(BaseModel):
     status: str

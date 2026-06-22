@@ -32,10 +32,12 @@ def predict_single(data: TransactionInput, model_name: str):
     else:
         probability = 1.0 if prediction == 1 else 0.0
 
+    # 🛠️ FIXED: Return matches SinglePredictionResponse schema requirements perfectly
     return {
         "model_used": model_name,
-        "is_fraud": bool(prediction == 1),
-        "fraud_probability": round(probability, 4)
+        "is_fraud": prediction, 
+        "fraud_probability": round(probability, 4),
+        "status": "Fraudulent Anomaly Detected" if prediction == 1 else "Legitimate Transaction Verified"
     }
 
 def predict_batch(df: pd.DataFrame, model_name: str):
@@ -65,9 +67,11 @@ def predict_batch(df: pd.DataFrame, model_name: str):
     else:
         probabilities = [1.0 if p == 1 else 0.0 for p in predictions]
 
+    # 🛠️ FIXED: Keys match your BatchPredictionResponse schema and React components perfectly
     return {
         "model_used": model_name,
         "predictions": predictions,
         "probabilities": [round(p, 4) for p in probabilities],
-        "fraud_count": sum(predictions)
+        "total_processed": int(len(predictions)), # Added total metrics count
+        "fraud_detected": int(sum(predictions))    # Realigned field name with frontend UI
     }
