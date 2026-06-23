@@ -5,7 +5,7 @@
 # 1. Large Data Files & Datasets (CRITICAL)
 # This blocks the 143MB file that failed your push earlier
 /data/creditcard.csv
-*.csv
+creditcard.csv
 *.sqlite3
 
 
