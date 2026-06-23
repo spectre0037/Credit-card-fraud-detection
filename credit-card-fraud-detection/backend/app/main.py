@@ -96,7 +96,7 @@ def evaluate_test_set(model_name: str = Query("xgboost")):
     Loads the extracted test dataset dynamically from 'data/creditcard_test_true.csv', 
     runs batch inference using the specified model, and returns real-time metrics along with a confusion matrix.
     """
-    test_file_path = "../data/creditcard_test_true.csv"
+    test_file_path = "./creditcard_test_true.csv"
     
     # 1. Verify that the test data file exists
     if not os.path.exists(test_file_path):
