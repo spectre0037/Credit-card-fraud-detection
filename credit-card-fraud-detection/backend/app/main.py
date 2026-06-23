@@ -1,6 +1,7 @@
 import io
 import os
 import pandas as pd
+import numpy as np
 from fastapi import FastAPI, HTTPException, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, confusion_matrix
@@ -13,7 +14,7 @@ from app.schemas import (
     TestSetEvaluationResponse
 )
 from app.model_loader import model_registry
-from app.predictor import predict_single, predict_batch
+from app.predictor import predict_single, predict_batch, FEATURE_COLS
 
 app = FastAPI(
     title="Credit Card Fraud Detection API",
@@ -90,14 +91,15 @@ async def predict_csv_batch(
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-# 🌟 UPDATED ENDPOINT: Now processes direct dynamic dataset file uploads from frontend dashboard
+# 🌟 HIGH-SPEED PERFORMANCE OPTIMIZED ANALYTICS ENDPOINT
 @app.post("/analytics/evaluate-test-set", response_model=TestSetEvaluationResponse, tags=["Analytics"])
 async def evaluate_uploaded_test_set(
     file: UploadFile = File(...),
     model_name: str = Form("xgboost")
 ):
     """
-    Accepts an uploaded test CSV file, runs batch inference, and returns real-time metrics along with a confusion matrix.
+    Accepts an uploaded test CSV file, parses columns conditionally using vectorized 
+    numpy data streams, and computes accuracy metrics alongside a 2x2 confusion matrix.
     """
     if model_name not in model_registry.list_available_models():
         raise HTTPException(
@@ -109,9 +111,18 @@ async def evaluate_uploaded_test_set(
         raise HTTPException(status_code=400, detail="Invalid file type. Please upload a .csv file.")
     
     try:
-        # Read uploaded file out of memory streaming arrays
+        # Stream file contents directly from network memory block
         contents = await file.read()
-        df_test = pd.read_csv(io.BytesIO(contents))
+        
+        # Optimization 1: Drop file-read structural footprint by parsing only required feature slices
+        required_load_cols = FEATURE_COLS + ["Class"]
+        try:
+            df_test = pd.read_csv(io.BytesIO(contents), usecols=required_load_cols)
+        except ValueError:
+            raise HTTPException(
+                status_code=400,
+                detail="Uploaded file schema mismatch. Ensure all base V1-V28 inputs and ground-truth 'Class' columns exist."
+            )
         
         if "Class" not in df_test.columns:
             raise HTTPException(
@@ -119,50 +130,37 @@ async def evaluate_uploaded_test_set(
                 detail="The uploaded test dataset must contain the true ground-truth labels column named 'Class'."
             )
             
-        # Isolate targets from data points
-        X_test = df_test.drop(columns=["Class"])
-        y_true = df_test["Class"].astype(int)
+        # Optimization 2: Vectorized type conversion avoiding iteration loops entirely
+        y_true = df_test["Class"].to_numpy(dtype=int)
+        X_test = df_test[FEATURE_COLS]
         
-        # Verify columns match the standard training feature sets
-        from app.predictor import FEATURE_COLS
-        missing_cols = [col for col in FEATURE_COLS if col not in X_test.columns]
-        if missing_cols:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Uploaded CSV schema mismatch. Missing required features: {missing_cols}"
-            )
-            
-        # Ensure correct column order and clean up non-numeric fields
-        X_test = X_test[FEATURE_COLS].copy()
-        for col in FEATURE_COLS:
-            X_test[col] = pd.to_numeric(X_test[col], errors='coerce')
-        X_test.fillna(0, inplace=True)
+        # Extract straight to continuous C-ordered raw float32 array matrix for minimal execution latency
+        X_test_mat = X_test.to_numpy(dtype='float32')
+        X_test_mat = np.nan_to_num(X_test_mat, nan=0.0)
         
-        # Fetch operational artifacts
+        # Fetch pipeline parameters
         model = model_registry.get_model(model_name)
         scaler = model_registry.get_scaler()
         
         if not model or not scaler:
             raise HTTPException(status_code=500, detail="Requested machine learning artifacts could not be read from system cache.")
             
-        # Transform and predict
-        X_test_scaled = scaler.transform(X_test)
+        # Optimization 3: Scale and evaluate directly using numpy representation matrix structures
+        X_test_scaled = scaler.transform(X_test_mat)
         y_pred = model.predict(X_test_scaled).astype(int)
         
-        # Calculate scores
+        # Calculate dynamic analytics scores
         acc = accuracy_score(y_true, y_pred)
         prec = precision_score(y_true, y_pred, zero_division=0)
         rec = recall_score(y_true, y_pred, zero_division=0)
         f1 = f1_score(y_true, y_pred, zero_division=0)
         
-        # Generate Confusion Matrix elements
+        # Process and handle edge cases safely within the confusion matrix bounds
         cm = confusion_matrix(y_true, y_pred, labels=[0, 1])
-        # Force unpack shape matrix bounds perfectly safely
         if cm.shape == (2, 2):
             tn, fp, fn, tp = cm.ravel().tolist()
         else:
-            # Handle special fallback instances if dataset only possesses a single-class split array
-            tn = int(cm[0][0]) if len(y_true.unique()) == 1 else 0
+            tn = int(cm[0][0]) if len(np.unique(y_true)) == 1 else 0
             fp, fn, tp = 0, 0, 0
         
         return {
