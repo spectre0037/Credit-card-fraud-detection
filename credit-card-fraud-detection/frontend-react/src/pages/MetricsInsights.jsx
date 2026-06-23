@@ -22,7 +22,7 @@ export default function MetricsInsights() {
     setError(null);
     try {
       // Points directly to our new FastAPI analytical route endpoint
-      const response = await axios.get(`http://localhost:8000/analytics/evaluate-test-set?model_name=${modelId}`);
+      const response = await axios.get(`https://credit-card-fraud-detection-4pck.onrender.com/analytics/evaluate-test-set?model_name=${modelId}`);
       setData(response.data);
     } catch (err) {
       console.error(err);
