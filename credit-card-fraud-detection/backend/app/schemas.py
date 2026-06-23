@@ -35,7 +35,8 @@ class TransactionInput(BaseModel):
     V26: float
     V27: float
     V28: float
-    Amount: float = Field(..., description="Transaction transaction value", gt=0)
+    # 🛠️ REMOVED gt=0 constraint because actual data benchmarks contain valid 0.0 value baseline rows
+    Amount: float = Field(..., description="Transaction transaction value")
 
     class Config:
         json_schema_extra = {
@@ -51,18 +52,38 @@ class TransactionInput(BaseModel):
 
 class SinglePredictionResponse(BaseModel):
     model_used: str
-    is_fraud: int # Changed to int (0 or 1) to match machine learning binary classifications perfectly
+    is_fraud: int  # 0 or 1 matching machine learning binary classifications
     fraud_probability: float
     status: str
 
-# 🛠️ FIXED: Matches React frontend variables perfectly and eliminates the 0-results bug
 class BatchPredictionResponse(BaseModel):
     model_used: str
     predictions: List[int]
     probabilities: List[float]
-    total_processed: int # Added to map directly to frontend chart engines
-    fraud_detected: int  # Fixed naming to match results.fraud_detected inside your UI page
+    total_processed: int  # Maps directly to frontend chart engines
+    fraud_detected: int   # Matches results.fraud_detected inside your UI page
 
 class ModelMeta(BaseModel):
     status: str
     available_models: List[str]
+
+# 🌟 NEW VALIDATION SCHEMAS FOR LIVE METRICS & CONFUSION MATRIX
+
+class AnalyticsMetrics(BaseModel):
+    accuracy: str = Field(..., description="Calculated global classification accuracy percentage")
+    precision: str = Field(..., description="Calculated true model precision rate percentage")
+    recall: str = Field(..., description="Calculated true model recall catch percentage")
+    f1_score: str = Field(..., description="Calculated balance harmonic mean score percentage")
+
+class ConfusionMatrixData(BaseModel):
+    true_negatives: int = Field(..., description="Clean transactions correctly classified as clean")
+    false_positives: int = Field(..., description="Clean transactions incorrectly flagged as fraud")
+    false_negatives: int = Field(..., description="Fraudulent actions missed by the model classifier")
+    true_positives: int = Field(..., description="Fraudulent transactions successfully caught by the model")
+
+class TestSetEvaluationResponse(BaseModel):
+    """ Validation contract response for live out-of-sample test files evaluation """
+    model_evaluated: str
+    total_test_samples: int
+    metrics: AnalyticsMetrics
+    confusion_matrix: ConfusionMatrixData
