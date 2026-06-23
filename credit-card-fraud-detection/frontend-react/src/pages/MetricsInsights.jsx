@@ -1,222 +1,183 @@
-import React, { useState, useEffect } from 'react';
-import { TrendingUp, AlertOctagon, ShieldCheck, HelpCircle, RefreshCw, UploadCloud, FileSpreadsheet } from 'lucide-react';
+import React, { useState } from 'react';
 import axios from 'axios';
 
 export default function MetricsInsights() {
   const [selectedModel, setSelectedModel] = useState('xgboost');
   const [file, setFile] = useState(null);
-  const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
+  const [error, setError] = useState('');
+  const [results, setResults] = useState(null);
 
-  const modelRegistryList = [
-    { id: 'xgboost', name: 'XGBoost Assembly' },
-    { id: 'lightgbm', name: 'LightGBM Tree' },
-    { id: 'random_forest', name: 'Random Forest Ensemble' },
-    { id: 'logistic', name: 'Logistic Regression' }
-  ];
-
-  // Handle file drop/selection
   const handleFileChange = (e) => {
-    if (e.target.files && e.target.files[0]) {
-      setFile(e.target.files[0]);
-      setError(null);
-    }
+    setFile(e.target.files[0]);
+    setError('');
   };
 
-  // Run calculation dynamically by pushing the uploaded file to the server
-  const runDynamicEvaluation = async (modelId = selectedModel, targetFile = file) => {
-    if (!targetFile) return;
+  const handleEvaluate = async (e) => {
+    e.preventDefault();
+    if (!file) {
+      setError('Please provide a ground-truth CSV test dataset.');
+      return;
+    }
 
     setLoading(true);
-    setError(null);
+    setError('');
+    setResults(null);
 
+    // Using standard Multi-part Form Data matching your Form(...) parameters in FastAPI
     const formData = new FormData();
-    formData.append('file', targetFile);
-    formData.append('model_name', modelId);
+    formData.append('file', file);
+    formData.append('model_name', selectedModel);
 
     try {
-      // 🛠️ Switched to POST to safely stream your uploaded file content to Render
-      const response = await axios.post(
-        `https://credit-card-fraud-detection-4pck.onrender.com/analytics/evaluate-test-set`,
-        formData,
-        { headers: { 'Content-Type': 'multipart/form-data' } }
-      );
-      setData(response.data);
+      // Connects directly to your high-speed performance optimized endpoint
+      const response = await axios.post('/analytics/evaluate-test-set', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      setResults(response.data);
     } catch (err) {
-      console.error(err);
-      setError(err.response?.data?.detail || "Calculation stream broken. Please verify the CSV layout format matches.");
+      setError(err.response?.data?.detail || 'Execution failed while calculating engine metrics.');
     } finally {
       setLoading(false);
     }
   };
 
-  // Re-run evaluation instantly if the user keeps the file but toggles the model button
-  useEffect(() => {
-    if (file) {
-      runDynamicEvaluation(selectedModel, file);
-    }
-  }, [selectedModel]);
+  // Maps professional component accent color variations dynamically based on model selection
+  const getThemeColor = () => {
+    const colors = {
+      xgboost: 'bg-blue-600 hover:bg-blue-700 text-blue-600 border-blue-100 bg-blue-50/50 fill-blue-600',
+      lightgbm: 'bg-green-600 hover:bg-green-700 text-green-600 border-green-100 bg-green-50/50 fill-green-600',
+      random_forest: 'bg-orange-600 hover:bg-orange-700 text-orange-600 border-orange-100 bg-orange-50/50 fill-orange-600',
+      logistic_regression: 'bg-purple-600 hover:bg-purple-700 text-purple-600 border-purple-100 bg-purple-50/50 fill-purple-600',
+    };
+    return colors[selectedModel] || colors.xgboost;
+  };
+
+  const themeClass = getThemeColor().split(' ');
 
   return (
-    <div className="space-y-6 animate-fadeIn text-slate-100">
-      
-      {/* HEADER SECTION */}
-      <div className="bg-slate-800/50 backdrop-blur-md p-6 rounded-2xl border border-slate-700/60 shadow-2xl flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div>
-          <h3 className="text-lg font-black text-white uppercase tracking-wider flex items-center gap-2">
-            <TrendingUp className="h-5 w-5 text-blue-500" /> Live Out-Of-Sample Validation
-          </h3>
-          <p className="text-sm text-slate-400 mt-1">
-            Upload your `creditcard_test_true.csv` file directly into the dashboard to calculate real-time benchmarks.
-          </p>
-        </div>
-
-        {/* ALGORITHM TOGGLES */}
-        {file && (
-          <div className="flex flex-wrap bg-slate-950/60 p-1.5 rounded-xl border border-slate-800">
-            {modelRegistryList.map((m) => (
-              <button
-                key={m.id}
-                onClick={() => setSelectedModel(m.id)}
-                className={`px-4 py-2 text-xs font-black uppercase tracking-wider rounded-lg transition-all ${
-                  selectedModel === m.id
-                    ? 'bg-blue-600 text-white shadow-md'
-                    : 'text-slate-400 hover:text-white'
-                }`}
-              >
-                {m.id.replace('_', ' ')}
-              </button>
-            ))}
-          </div>
-        )}
+    <div className="p-6 max-w-6xl mx-auto bg-gray-50 min-h-screen">
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold text-gray-800">System Metrics & Insights</h1>
+        <p className="text-gray-600 mt-1">Accepts runtime validation batches to compute evaluation vectors across memory models.</p>
       </div>
 
-      {/* ERROR HANDLER */}
-      {error && (
-        <div className="p-4 bg-red-950/40 border border-red-900/50 text-red-400 text-xs rounded-xl flex items-start gap-2">
-          <AlertOctagon className="h-4 w-4 mt-0.5 flex-shrink-0" />
-          <div>
-            <span className="font-bold block">Evaluation Interrupted:</span>
-            <span className="opacity-80">{error}</span>
-          </div>
-        </div>
-      )}
-
-      {/* DYNAMIC VIEW CONDITIONALS */}
-      {!file ? (
-        /* DYNAMIC FILE PICKER INPUT DROPZONE */
-        <div className="border-2 border-dashed border-slate-800 hover:border-blue-500/50 transition-all bg-slate-900/20 rounded-2xl p-12 text-center max-w-xl mx-auto flex flex-col items-center justify-center space-y-4">
-          <div className="p-4 bg-slate-950 rounded-full border border-slate-800">
-            <UploadCloud className="h-8 w-8 text-blue-500" />
-          </div>
-          <div>
-            <h4 className="text-sm font-black text-white uppercase tracking-wider">Select Validation Dataset</h4>
-            <p className="text-xs text-slate-500 mt-1">Upload a CSV containing both input dimensions and the target label column (`Class` column).</p>
-          </div>
-          <label className="cursor-pointer bg-blue-600 hover:bg-blue-500 px-4 py-2 text-xs font-black uppercase tracking-wider rounded-xl transition-all shadow-lg text-white">
-            Browse Test File
-            <input type="file" accept=".csv" onChange={handleFileChange} className="hidden" />
-          </label>
-        </div>
-      ) : loading ? (
-        /* LOADING STATE */
-        <div className="bg-slate-900/40 border border-slate-800 p-12 rounded-2xl text-center flex flex-col items-center justify-center space-y-3">
-          <RefreshCw className="h-8 w-8 text-blue-500 animate-spin" />
-          <p className="text-xs font-mono text-slate-400">
-            Uploading array binaries and mapping confusion matrix metrics...
-          </p>
-        </div>
-      ) : data ? (
-        /* REPORT VIEW GRAPHICS DISPLAY */
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Left Input Configuration Column */}
+        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 h-fit">
+          <h2 className="text-lg font-semibold text-gray-700 mb-4">Pipeline Controller</h2>
           
-          {/* STATS COLLATERAL */}
-          <div className="lg:col-span-5 space-y-4">
-            <div className="flex justify-between items-center px-1">
-              <h4 className="text-xs font-black uppercase tracking-widest text-slate-400">Computed Scores</h4>
-              <button 
-                onClick={() => setFile(null)} 
-                className="text-[10px] uppercase font-black tracking-widest text-red-400 hover:underline"
+          <form onSubmit={handleEvaluate} className="space-y-5">
+            <div>
+              <label className="block text-sm font-medium text-gray-600 mb-2">Target Class Estimator</label>
+              <select
+                value={selectedModel}
+                onChange={(e) => { setSelectedModel(e.target.value); setResults(null); }}
+                className="w-full p-2.5 border border-gray-300 rounded-lg bg-gray-50 text-gray-800 focus:ring-2 focus:ring-blue-500 outline-none capitalize text-sm font-medium"
               >
-                Clear File
-              </button>
-            </div>
-            
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <MetricBlock label="Global Accuracy" value={data.metrics.accuracy} sub="Matched prediction total" color="text-white" />
-              <MetricBlock label="Precision Score" value={data.metrics.precision} sub="False alarm filter rate" color="text-emerald-400" />
-              <MetricBlock label="Recall Catch Rate" value={data.metrics.recall} sub="True danger interception" color="text-amber-400" />
-              <MetricBlock label="Balanced F1 Score" value={data.metrics.f1_score} sub="Harmonic feature vector mean" color="text-blue-400" />
+                <option value="xgboost">XGBoost Engine</option>
+                <option value="lightgbm">LightGBM Classifier</option>
+                <option value="random_forest">Random Forest</option>
+                <option value="logistic_regression">Logistic Regression</option>
+              </select>
             </div>
 
-            <div className="bg-slate-900/30 border border-slate-850 p-4 rounded-xl text-xs text-slate-400 space-y-2">
-              <div className="flex items-center gap-2 text-white font-bold mb-1 border-b border-slate-850 pb-1.5">
-                <FileSpreadsheet className="h-4 w-4 text-emerald-500" />
-                <span className="truncate max-w-[200px]">{file.name}</span>
-              </div>
-              <div className="flex justify-between"><span>Active Classifier Engine:</span><span className="font-mono text-white uppercase font-black">{data.model_evaluated}</span></div>
-              <div className="flex justify-between"><span>Evaluated Row Dimensions:</span><span className="font-mono text-white">{data.total_test_samples.toLocaleString()} items</span></div>
+            <div>
+              <label className="block text-sm font-medium text-gray-600 mb-2">Test File Dataset (CSV)</label>
+              <input
+                type="file"
+                accept=".csv"
+                onChange={handleFileChange}
+                className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-gray-100 file:text-gray-700 hover:file:bg-gray-200 cursor-pointer"
+              />
             </div>
-          </div>
 
-          {/* CONFUSION MATRIX COMPONENT */}
-          <div className="lg:col-span-7 space-y-4">
-            <h4 className="text-xs font-black uppercase tracking-widest text-slate-400 px-1">Dynamic Confusion Matrix</h4>
-            
-            <div className="bg-slate-900/40 border border-slate-800/80 p-6 rounded-2xl space-y-4">
-              <div className="grid grid-cols-2 text-center text-[10px] font-black uppercase tracking-widest text-slate-500">
-                <div>Predicted Legitimate (0)</div>
-                <div>Predicted Fraud (1)</div>
-              </div>
+            {error && <div className="text-sm text-red-600 bg-red-50 p-2.5 rounded-lg border border-red-100">{error}</div>}
 
-              <div className="grid grid-cols-2 gap-3">
-                <div className="bg-slate-950 p-4 border border-slate-850 rounded-xl text-center flex flex-col justify-center min-h-[95px]">
-                  <span className="text-[9px] font-black text-slate-500 uppercase tracking-wider">True Negatives (TN)</span>
-                  <span className="text-xl font-mono font-black text-slate-200 mt-1">{data.confusion_matrix.true_negatives.toLocaleString()}</span>
-                  <span className="text-[9px] text-emerald-500 font-bold mt-1 flex items-center justify-center gap-1"><ShieldCheck className="h-3 w-3" /> Safe Clearances</span>
-                </div>
-
-                <div className="bg-amber-950/10 border border-amber-900/20 p-4 rounded-xl text-center flex flex-col justify-center min-h-[95px]">
-                  <span className="text-[9px] font-black text-amber-500/80 uppercase tracking-wider">False Positives (FP)</span>
-                  <span className="text-xl font-mono font-black text-amber-400 mt-1">{data.confusion_matrix.false_positives.toLocaleString()}</span>
-                  <span className="text-[9px] text-amber-500/50 font-medium mt-1">False Alarms triggered</span>
-                </div>
-
-                <div className="bg-red-950/20 border border-red-900/30 p-4 rounded-xl text-center flex flex-col justify-center min-h-[95px]">
-                  <span className="text-[9px] font-black text-red-500/80 uppercase tracking-wider">False Negatives (FN)</span>
-                  <span className="text-xl font-mono font-black text-red-500 mt-1">{data.confusion_matrix.false_negatives.toLocaleString()}</span>
-                  <span className="text-[9px] text-red-400/50 font-medium mt-1 flex items-center justify-center gap-1"><AlertOctagon className="h-3 w-3" /> Missed Breaches</span>
-                </div>
-
-                <div className="bg-blue-950/20 border border-blue-900/30 p-4 rounded-xl text-center flex flex-col justify-center min-h-[95px]">
-                  <span className="text-[9px] font-black text-blue-400 uppercase tracking-wider">True Positives (TP)</span>
-                  <span className="text-xl font-mono font-black text-blue-400 mt-1">{data.confusion_matrix.true_positives.toLocaleString()}</span>
-                  <span className="text-[9px] text-blue-400/80 font-bold mt-1">Criminal Attacks Blocked</span>
-                </div>
-              </div>
-
-              <div className="text-[11px] text-slate-500 flex items-start gap-2 bg-slate-950/80 p-3 rounded-xl border border-slate-850">
-                <HelpCircle className="h-4 w-4 text-blue-500 mt-0.5 flex-shrink-0" />
-                <span>
-                  <strong>Dynamic Assessment:</strong> These parameters recalculate instantly whenever you supply a raw target file dataset array split to the execution server blocks.
-                </span>
-              </div>
-            </div>
-          </div>
-
+            <button
+              type="submit"
+              disabled={loading}
+              className={`w-full py-2.5 text-white text-sm font-semibold rounded-lg transition-colors shadow-sm ${themeClass[0]} ${themeClass[1]} disabled:bg-gray-400 disabled:cursor-not-allowed`}
+            >
+              {loading ? 'Processing Vector Streams...' : 'Evaluate Test Dataset'}
+            </button>
+          </form>
         </div>
-      ) : null}
-    </div>
-  );
-}
 
-function MetricBlock({ label, value, sub, color }) {
-  return (
-    <div className="bg-slate-900 border border-slate-850 p-4 rounded-xl flex flex-col justify-between min-h-[95px] hover:border-slate-700 transition-all">
-      <span className="text-[10px] text-slate-400 font-black uppercase tracking-widest block">{label}</span>
-      <span className={`text-2xl font-mono font-black mt-1 ${color}`}>{value}</span>
-      <span className="text-[9px] text-slate-500 font-medium mt-1 block border-t border-slate-850/60 pt-1">{sub}</span>
+        {/* Right Dashboard Analytics Graphics Column */}
+        <div className="lg:col-span-2">
+          {loading && (
+            <div className="bg-white p-12 rounded-xl shadow-sm border border-gray-200 flex flex-col items-center justify-center min-h-[420px]">
+              <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-gray-800 mb-4"></div>
+              <p className="text-gray-500 text-sm font-medium">Running predictions across linear matrices...</p>
+            </div>
+          )}
+
+          {!loading && !results && (
+            <div className="bg-white p-12 rounded-xl shadow-sm border border-gray-200 flex flex-col items-center justify-center min-h-[420px] text-center">
+              <div className="text-gray-300 text-5xl mb-3">📊</div>
+              <p className="text-gray-500 font-medium">Evaluation Interface Idle</p>
+              <p className="text-xs text-gray-400 max-w-xs mt-1">Upload your validation payload on the left to display classification tracking scores.</p>
+            </div>
+          )}
+
+          {!loading && results && (
+            <div className="space-y-6">
+              {/* Statistical Value Indicator Cards */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                {Object.entries(results.metrics).map(([key, value]) => (
+                  <div key={key} className="bg-white p-4 rounded-xl shadow-sm border border-gray-200">
+                    <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">{key.replace('_', ' ')}</p>
+                    <p className={`text-2xl font-black mt-1 ${themeClass[2]}`}>{value}</p>
+                  </div>
+                ))}
+              </div>
+
+              {/* Native HTML/Tailwind Styled Confusion Matrix Grid */}
+              <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+                <h3 className="text-lg font-semibold text-gray-800 mb-6 capitalize">
+                  {results.model_evaluated.replace('_', ' ')} Error Distribution Grid
+                </h3>
+                
+                <div className="flex flex-col items-center">
+                  <div className="grid grid-cols-3 gap-2 w-full max-w-md">
+                    {/* Corner Space Spacer */}
+                    <div></div>
+                    <div className="text-center font-bold text-xs uppercase text-gray-400 tracking-wider">Predicted Legit</div>
+                    <div className="text-center font-bold text-xs uppercase text-gray-400 tracking-wider">Predicted Fraud</div>
+
+                    {/* Actual Legit Row */}
+                    <div className="flex items-center font-bold text-xs uppercase text-gray-400 tracking-wider pr-2 justify-end">Actual Legit</div>
+                    <div className="bg-green-50 border border-green-200 text-green-800 p-6 rounded-lg text-center shadow-inner">
+                      <span className="block text-xl font-extrabold">{results.confusion_matrix.true_negatives.toLocaleString()}</span>
+                      <span className="text-[10px] uppercase font-bold tracking-wider opacity-70">True Neg (TN)</span>
+                    </div>
+                    <div className="bg-red-50 border border-red-100 text-red-700 p-6 rounded-lg text-center">
+                      <span className="block text-xl font-extrabold">{results.confusion_matrix.false_positives.toLocaleString()}</span>
+                      <span className="text-[10px] uppercase font-bold tracking-wider opacity-70">False Pos (FP)</span>
+                    </div>
+
+                    {/* Actual Fraud Row */}
+                    <div className="flex items-center font-bold text-xs uppercase text-gray-400 tracking-wider pr-2 justify-end">Actual Fraud</div>
+                    <div className="bg-red-50 border border-red-100 text-red-700 p-6 rounded-lg text-center">
+                      <span className="block text-xl font-extrabold">{results.confusion_matrix.false_negatives.toLocaleString()}</span>
+                      <span className="text-[10px] uppercase font-bold tracking-wider opacity-70">False Neg (FN)</span>
+                    </div>
+                    <div className="bg-green-50 border border-green-200 text-green-800 p-6 rounded-lg text-center shadow-inner">
+                      <span className="block text-xl font-extrabold">{results.confusion_matrix.true_positives.toLocaleString()}</span>
+                      <span className="text-[10px] uppercase font-bold tracking-wider opacity-70">True Pos (TP)</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-6 p-3 rounded-lg text-xs text-gray-500 bg-gray-50 border border-gray-100">
+                  <strong>Evaluation Footprint:</strong> Processed <strong>{results.total_test_samples.toLocaleString()}</strong> distinct sample records. Green panels show secure hits. Red panels track system blind spots or false consumer friction.
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
