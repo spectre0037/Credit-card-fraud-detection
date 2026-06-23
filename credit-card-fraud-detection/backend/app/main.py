@@ -1,7 +1,7 @@
 import io
 import os
 import pandas as pd
-from fastapi import FastAPI, HTTPException, UploadFile, File, Form, Query
+from fastapi import FastAPI, HTTPException, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, confusion_matrix
 
@@ -9,18 +9,19 @@ from app.schemas import (
     TransactionInput, 
     SinglePredictionResponse, 
     BatchPredictionResponse, 
-    ModelMeta
+    ModelMeta,
+    TestSetEvaluationResponse
 )
 from app.model_loader import model_registry
 from app.predictor import predict_single, predict_batch
 
 app = FastAPI(
     title="Credit Card Fraud Detection API",
-    description="FastAPI production backend tracking unauthorized and fraudulent credit card activity with real-time test analytics.",
+    description="FastAPI production backend tracking unauthorized and fraudulent credit card activity.",
     version="1.0.0"
 )
 
-# 🛠️ CORS MIDDLEWARE: Standardized and appended production Vercel + local framework ports
+# 🛠️ CORS MIDDLEWARE
 origins = [
     "https://credit-card-fraud-detection-sable.vercel.app",  # Production live client
     "http://localhost:5173",                                 # Local Vite framework port
@@ -35,7 +36,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-@app.get("/", tags=["System"])
+@app.get("/", response_model=ModelMeta, tags=["System"])
 def get_status():
     """ Returns system metadata and lists which models are live in memory. """
     available = model_registry.list_available_models()
@@ -89,62 +90,80 @@ async def predict_csv_batch(
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-# 🌟 NEW ENDPOINT: Dynamically computes metrics and confusion matrix from test file
-@app.get("/analytics/evaluate-test-set", tags=["Analytics"])
-def evaluate_test_set(model_name: str = Query("xgboost")):
+# 🌟 UPDATED ENDPOINT: Now processes direct dynamic dataset file uploads from frontend dashboard
+@app.post("/analytics/evaluate-test-set", response_model=TestSetEvaluationResponse, tags=["Analytics"])
+async def evaluate_uploaded_test_set(
+    file: UploadFile = File(...),
+    model_name: str = Form("xgboost")
+):
     """
-    Loads the extracted test dataset dynamically from 'data/creditcard_test_true.csv', 
-    runs batch inference using the specified model, and returns real-time metrics along with a confusion matrix.
+    Accepts an uploaded test CSV file, runs batch inference, and returns real-time metrics along with a confusion matrix.
     """
-    test_file_path = "./creditcard_test_true.csv"
-    
-    # 1. Verify that the test data file exists
-    if not os.path.exists(test_file_path):
+    if model_name not in model_registry.list_available_models():
         raise HTTPException(
             status_code=404, 
-            detail="Test dataset file missing. Please make sure 'data/creditcard_test_true.csv' exists inside the backend directory."
+            detail=f"Model '{model_name}' not found. Choose from: {model_registry.list_available_models()}"
         )
     
+    if not file.filename.endswith('.csv'):
+        raise HTTPException(status_code=400, detail="Invalid file type. Please upload a .csv file.")
+    
     try:
-        # 2. Read the testing data rows
-        df_test = pd.read_csv(test_file_path)
+        # Read uploaded file out of memory streaming arrays
+        contents = await file.read()
+        df_test = pd.read_csv(io.BytesIO(contents))
         
         if "Class" not in df_test.columns:
             raise HTTPException(
                 status_code=400,
-                detail="The test dataset must contain the true labels column named 'Class'."
+                detail="The uploaded test dataset must contain the true ground-truth labels column named 'Class'."
             )
             
+        # Isolate targets from data points
         X_test = df_test.drop(columns=["Class"])
-        y_true = df_test["Class"]
+        y_true = df_test["Class"].astype(int)
         
-        # 3. Retrieve model and scaler from the registry
+        # Verify columns match the standard training feature sets
+        from app.predictor import FEATURE_COLS
+        missing_cols = [col for col in FEATURE_COLS if col not in X_test.columns]
+        if missing_cols:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Uploaded CSV schema mismatch. Missing required features: {missing_cols}"
+            )
+            
+        # Ensure correct column order and clean up non-numeric fields
+        X_test = X_test[FEATURE_COLS].copy()
+        for col in FEATURE_COLS:
+            X_test[col] = pd.to_numeric(X_test[col], errors='coerce')
+        X_test.fillna(0, inplace=True)
+        
+        # Fetch operational artifacts
         model = model_registry.get_model(model_name)
         scaler = model_registry.get_scaler()
         
-        if not model:
-            raise HTTPException(
-                status_code=400, 
-                detail=f"Model '{model_name}' is not loaded. Choose from: {model_registry.list_available_models()}"
-            )
-        if not scaler:
-            raise HTTPException(status_code=500, detail="Production scaler artifact missing from registry.")
+        if not model or not scaler:
+            raise HTTPException(status_code=500, detail="Requested machine learning artifacts could not be read from system cache.")
             
-        # 4. Scale inputs using the production scaler
+        # Transform and predict
         X_test_scaled = scaler.transform(X_test)
+        y_pred = model.predict(X_test_scaled).astype(int)
         
-        # 5. Run Live Bulk Predictions
-        y_pred = model.predict(X_test_scaled)
-        
-        # 6. Calculate True Dynamic Metrics
+        # Calculate scores
         acc = accuracy_score(y_true, y_pred)
         prec = precision_score(y_true, y_pred, zero_division=0)
         rec = recall_score(y_true, y_pred, zero_division=0)
         f1 = f1_score(y_true, y_pred, zero_division=0)
         
-        # 7. Generate Confusion Matrix Array
-        cm = confusion_matrix(y_true, y_pred)
-        tn, fp, fn, tp = cm.ravel().tolist()
+        # Generate Confusion Matrix elements
+        cm = confusion_matrix(y_true, y_pred, labels=[0, 1])
+        # Force unpack shape matrix bounds perfectly safely
+        if cm.shape == (2, 2):
+            tn, fp, fn, tp = cm.ravel().tolist()
+        else:
+            # Handle special fallback instances if dataset only possesses a single-class split array
+            tn = int(cm[0][0]) if len(y_true.unique()) == 1 else 0
+            fp, fn, tp = 0, 0, 0
         
         return {
             "model_evaluated": model_name,
@@ -156,11 +175,13 @@ def evaluate_test_set(model_name: str = Query("xgboost")):
                 "f1_score": f"{f1 * 100:.2f}%"
             },
             "confusion_matrix": {
-                "true_negatives": tn,   # Clean flagged Clean
-                "false_positives": fp,  # Clean flagged Fraud (False Alarm)
-                "false_negatives": fn,  # Fraud flagged Clean (Missed Danger)
-                "true_positives": tp    # Fraud flagged Fraud (Caught)
+                "true_negatives": tn,
+                "false_positives": fp,
+                "false_negatives": fn,
+                "true_positives": tp
             }
         }
+    except HTTPException as he:
+        raise he
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Analytics assessment failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Dynamic analytics evaluation failed: {str(e)}")
