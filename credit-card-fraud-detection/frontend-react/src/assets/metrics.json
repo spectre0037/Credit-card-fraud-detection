@@ -1,0 +1,42 @@
+{
+    "xgboost": {
+        "accuracy": "99.953%",
+        "precision": "88.46%",
+        "recall": "84.69%",
+        "f1_score": "86.53%",
+        "true_negatives": 56854,
+        "false_positives": 10,
+        "false_negatives": 15,
+        "true_positives": 83
+    },
+    "lightgbm": {
+        "accuracy": "99.931%",
+        "precision": "79.12%",
+        "recall": "85.71%",
+        "f1_score": "82.28%",
+        "true_negatives": 56845,
+        "false_positives": 19,
+        "false_negatives": 14,
+        "true_positives": 84
+    },
+    "random_forest": {
+        "accuracy": "99.912%",
+        "precision": "76.47%",
+        "recall": "79.59%",
+        "f1_score": "78.00%",
+        "true_negatives": 56840,
+        "false_positives": 24,
+        "false_negatives": 20,
+        "true_positives": 78
+    },
+    "logistic_regression": {
+        "accuracy": "97.480%",
+        "precision": "5.73%",
+        "recall": "90.82%",
+        "f1_score": "10.78%",
+        "true_negatives": 55398,
+        "false_positives": 1466,
+        "false_negatives": 9,
+        "true_positives": 89
+    }
+}
